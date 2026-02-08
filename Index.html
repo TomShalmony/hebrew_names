@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>יצירת דפי עבודה לילדים</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'Nehama';
+            src: url('nehama-webfont.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nehama', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+
+        .mode-btn {
+            padding: 15px 30px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-family: inherit;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .hint {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s;
+            font-family: inherit;
+            margin-top: 20px;
+        }
+
+        .generate-btn:hover {
+            transform: scale(1.02);
+        }
+
+        /* PDF Page Styles */
+        .pdf-page {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            padding: 15mm;
+            position: relative;
+            page-break-after: always;
+            display: none; /* Hidden until PDF generation */
+        }
+
+        .task {
+            margin-bottom: 10mm;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            padding: 6mm;
+            background: #f8f9fa;
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4mm;
+            padding-bottom: 3mm;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .task-icon {
+            font-size: 20px;
+        }
+
+        .task-title {
+            font-size: 16px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .task-instruction {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 4mm;
+        }
+
+        .task-content {
+            background: white;
+            padding: 6mm;
+            border-radius: 8px;
+        }
+
+        /* Task 1: Outline letters */
+        .outline-letters {
+            display: flex;
+            justify-content: center;
+            gap: 5mm;
+            flex-wrap: wrap;
+        }
+
+        .outline-letter {
+            font-size: 130px;
+            font-weight: bold;
+            color: transparent;
+            -webkit-text-stroke: 2px #333;
+            text-stroke: 2px #333;
+            line-height: 1;
+        }
+
+        /* Task 3 (old 2): Gray letters horizontally, page rotated */
+        .pdf-page.page-rotated {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            overflow: visible;
+        }
+        
+        .pdf-page.page-rotated .task {
+            transform: rotate(-90deg);
+            transform-origin: center center;
+            position: absolute;
+            width: 280mm;
+            height: 190mm;
+            left: -35mm;
+            top: 53mm;
+        }
+        
+        .sticker-letters {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 10mm;
+            flex-wrap: nowrap;
+            padding: 20mm;
+            min-height: 130mm;
+        }
+
+        .sticker-letter {
+            font-weight: bold;
+            color: #d0d0d0;
+            line-height: 1;
+        }
+        
+        /* Dynamic font sizes based on word length */
+        .sticker-letters[data-length="2"] .sticker-letter { font-size: 300px; }
+        .sticker-letters[data-length="3"] .sticker-letter { font-size: 270px; }
+        .sticker-letters[data-length="4"] .sticker-letter { font-size: 240px; }
+        .sticker-letters[data-length="5"] .sticker-letter { font-size: 210px; }
+        .sticker-letters[data-length="6"] .sticker-letter { font-size: 185px; }
+        .sticker-letters[data-length="7"] .sticker-letter { font-size: 165px; }
+        .sticker-letters[data-length="8"] .sticker-letter { font-size: 150px; }
+        .sticker-letters[data-length="9"] .sticker-letter { font-size: 135px; }
+        .sticker-letters.long-word .sticker-letter { font-size: 120px; }
+
+        /* Task 2 (old 3): Dotted trace with different font styles */
+        .trace-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 6mm;
+        }
+
+        .trace-word {
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 3px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 3mm;
+            position: relative;
+            font-size: 55px;
+        }
+
+        .trace-word-1 { font-family: 'Nehama', Arial, sans-serif; font-weight: normal; }
+        .trace-word-2 { font-family: 'Nehama', Arial, sans-serif; font-weight: bold; }
+        .trace-word-3 { font-family: 'Nehama', Arial, sans-serif; font-weight: normal; font-style: italic; }
+        .trace-word-4 { font-family: Arial, sans-serif; font-weight: bold; }
+        .trace-word-5 { font-family: 'Times New Roman', serif; font-weight: normal; }
+        .trace-word-6 { font-family: 'Courier New', monospace; font-weight: normal; }
+        
+        .trace-letter {
+            display: inline-block;
+            color: #ccc;
+            font-weight: inherit;
+        }
+
+        /* Task 4: Writing lines */
+        .example-word {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 8mm;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .writing-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 8mm;
+        }
+
+        .writing-line {
+            border-bottom: 2px solid #333;
+            min-height: 15mm;
+        }
+
+        /* Task 5: Two columns */
+        .matching-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 15mm;
+        }
+
+        .matching-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8mm;
+        }
+
+        .matching-box {
+            width: 100%;
+            height: 22mm;
+            border: 3px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            background: white;
+        }
+
+        .matching-image-box {
+            width: 100%;
+            height: 22mm;
+            border: 3px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            background: white;
+        }
+
+        /* Task 6: Letter tiles */
+        .letter-tiles {
+            display: flex;
+            justify-content: center;
+            gap: 5mm;
+            flex-wrap: wrap;
+        }
+
+        .letter-tile {
+            width: 25mm;
+            height: 25mm;
+            border: 3px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            background: white;
+        }
+
+        /* Task 7: Word options */
+        .word-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6mm;
+        }
+
+        .word-option {
+            border: 3px solid #333;
+            border-radius: 10px;
+            padding: 8mm;
+            text-align: center;
+            font-size: 36px;
+            font-weight: bold;
+            background: white;
+        }
+
+        /* Task 8: Real letters with rotations */
+        .real-letters-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8mm;
+        }
+
+        .real-letters-row {
+            display: flex;
+            gap: 4mm;
+            align-items: center;
+        }
+
+        .real-letter-label {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            min-width: 50mm;
+        }
+
+        .real-letter-box {
+            width: 22mm;
+            height: 22mm;
+            border: 3px solid #333;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            background: white;
+        }
+
+        .rotated-90 { 
+            transform: rotate(90deg); 
+            display: inline-block;
+        }
+        .rotated-180 { 
+            transform: rotate(180deg); 
+            display: inline-block;
+        }
+        .rotated-270 { 
+            transform: rotate(270deg); 
+            display: inline-block;
+        }
+        .flipped { 
+            transform: scaleX(-1); 
+            display: inline-block;
+        }
+
+        /* Task 9: Cut and paste */
+        .paste-area {
+            border: 3px dashed #999;
+            border-radius: 8px;
+            min-height: 30mm;
+            background: #fafafa;
+            margin-bottom: 6mm;
+        }
+
+        .cutout-section {
+            border: 2px dashed #999;
+            border-radius: 8px;
+            padding: 6mm;
+            background: #fffacd;
+            margin-top: 5mm;
+        }
+
+        .cutout-instruction {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 5mm;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .cutout-letters {
+            display: flex;
+            justify-content: center;
+            gap: 3mm;
+        }
+
+        .cutout-letter {
+            width: 20mm;
+            height: 25mm;
+            border: 2px dashed #666;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            background: white;
+        }
+
+        #pdfContainer {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 יצירת דפי עבודה לילדים</h1>
+        
+        <div class="input-section">
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="setMode('single')">מילה בודדת</button>
+                <button class="mode-btn" onclick="setMode('multiple')">רשימת שמות</button>
+            </div>
+
+            <div id="singleMode">
+                <label for="singleWord">הזן שם או מילה:</label>
+                <input type="text" id="singleWord" placeholder="לדוגמה: נינה">
+            </div>
+
+            <div id="multipleMode" style="display: none;">
+                <label for="nameList">הזן רשימת שמות (שם אחד בכל שורה):</label>
+                <textarea id="nameList" placeholder="נינה&#10;דניאל&#10;שירה&#10;יוסי"></textarea>
+                <div class="hint">הקלד שם אחד בכל שורה</div>
+            </div>
+
+            <button class="generate-btn" onclick="generatePDF()">🎉 צור והורד PDF</button>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <div id="pdfContainer"></div>
+
+    <script>
+        let currentMode = 'single';
+        
+        const letterToWord = {
+            'א': { word: 'אריה', emoji: '🦁' },
+            'ב': { word: 'בית', emoji: '🏠' },
+            'ג': { word: 'גמל', emoji: '🐪' },
+            'ד': { word: 'דג', emoji: '🐟' },
+            'ה': { word: 'הליקופטר', emoji: '🚁' },
+            'ו': { word: 'ורד', emoji: '🌹' },
+            'ז': { word: 'זחל', emoji: '🐛' },
+            'ח': { word: 'חתול', emoji: '🐱' },
+            'ט': { word: 'טווס', emoji: '🦚' },
+            'י': { word: 'יד', emoji: '✋' },
+            'כ': { word: 'כלב', emoji: '🐕' },
+            'ך': { word: 'כלב', emoji: '🐕' },
+            'ל': { word: 'לב', emoji: '❤️' },
+            'מ': { word: 'מספריים', emoji: '✂️' },
+            'ם': { word: 'מספריים', emoji: '✂️' },
+            'נ': { word: 'נעל', emoji: '👟' },
+            'ן': { word: 'נעל', emoji: '👟' },
+            'ס': { word: 'ספר', emoji: '📚' },
+            'ע': { word: 'עין', emoji: '👁️' },
+            'פ': { word: 'פרפר', emoji: '🦋' },
+            'ף': { word: 'פרפר', emoji: '🦋' },
+            'צ': { word: 'ציפור', emoji: '🐦' },
+            'ץ': { word: 'ציפור', emoji: '🐦' },
+            'ק': { word: 'קוף', emoji: '🐵' },
+            'ר': { word: 'רכבת', emoji: '🚂' },
+            'ש': { word: 'שמש', emoji: '☀️' },
+            'ת': { word: 'תרנגול', emoji: '🐓' }
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (mode === 'single') {
+                document.getElementById('singleMode').style.display = 'block';
+                document.getElementById('multipleMode').style.display = 'none';
+            } else {
+                document.getElementById('singleMode').style.display = 'none';
+                document.getElementById('multipleMode').style.display = 'block';
+            }
+        }
+
+        async function generatePDF() {
+            let words = [];
+            
+            if (currentMode === 'single') {
+                const word = document.getElementById('singleWord').value.trim();
+                if (!word) {
+                    alert('אנא הזן מילה');
+                    return;
+                }
+                words = [word];
+            } else {
+                const nameList = document.getElementById('nameList').value.trim();
+                if (!nameList) {
+                    alert('אנא הזן רשימת שמות');
+                    return;
+                }
+                words = nameList.split('\n').map(w => w.trim()).filter(w => w);
+            }
+
+            document.getElementById('status').textContent = 'מייצר PDF...';
+            
+            const container = document.getElementById('pdfContainer');
+            container.innerHTML = '';
+            
+            // Create all pages
+            for (const word of words) {
+                const pages = createWorksheetPages(word);
+                pages.forEach(page => container.appendChild(page));
+            }
+            
+            // Wait a moment for rendering
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Generate PDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pages = container.querySelectorAll('.pdf-page');
+            
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                page.style.display = 'block';
+                
+                try {
+                    const canvas = await html2canvas(page, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        width: page.offsetWidth,
+                        height: page.offsetHeight
+                    });
+
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    if (i > 0) {
+                        pdf.addPage();
+                    }
+                    
+                    pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                    page.style.display = 'none';
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+
+            pdf.save(`דפי-עבודה-${words.join('-')}.pdf`);
+            document.getElementById('status').textContent = 'PDF הורד בהצלחה! 🎉';
+            
+            setTimeout(() => {
+                document.getElementById('status').textContent = '';
+            }, 3000);
+        }
+
+        function createWorksheetPages(word) {
+            const letters = word.split('');
+            const pages = [];
+            
+            // Page 1: Task 1 and NEW Task 2 (old task 3)
+            const page1 = document.createElement('div');
+            page1.className = 'pdf-page';
+            page1.innerHTML = `
+                ${createTask1(word)}
+                ${createTask2(word)}
+            `;
+            pages.push(page1);
+            
+            // Page 2: NEW Task 3 (old task 2) - rotated 90 degrees
+            const page2 = document.createElement('div');
+            page2.className = 'pdf-page page-rotated';
+            page2.innerHTML = createTask3(letters);
+            pages.push(page2);
+            
+            // Page 3: Task 4
+            const page3 = document.createElement('div');
+            page3.className = 'pdf-page';
+            page3.innerHTML = createTask4(word);
+            pages.push(page3);
+            
+            // Page 4: Task 5
+            const page4 = document.createElement('div');
+            page4.className = 'pdf-page';
+            page4.innerHTML = createTask5(letters);
+            pages.push(page4);
+            
+            // Page 5: Tasks 6 and 7
+            const page5 = document.createElement('div');
+            page5.className = 'pdf-page';
+            page5.innerHTML = `
+                ${createTask6(letters)}
+                ${createTask7(word)}
+            `;
+            pages.push(page5);
+            
+            // Page 6: Task 8
+            const page6 = document.createElement('div');
+            page6.className = 'pdf-page';
+            page6.innerHTML = createTask8(letters);
+            pages.push(page6);
+            
+            // Page 7: Task 9
+            const page7 = document.createElement('div');
+            page7.className = 'pdf-page';
+            page7.innerHTML = createTask9(letters);
+            pages.push(page7);
+            
+            return pages;
+        }
+
+        // משימה 1: צבע את האותיות החלולות
+        function createTask1(word) {
+            const letters = word.split('').map(l => `<div class="outline-letter">${l}</div>`).join('');
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">🎨</span>
+                        <span class="task-title">משימה 1: צבע את האותיות החלולות</span>
+                    </div>
+                    <div class="task-instruction">צבע את המילה באותיותך גדולות וחלולות</div>
+                    <div class="task-content">
+                        <div class="outline-letters">${letters}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 2: התעקב את המילה בקווים מקווקוים (OLD TASK 3)
+        function createTask2(word) {
+            const lines = Array(6).fill(0).map((_, i) => {
+                const letters = word.split('').map(l => `<span class="trace-letter">${l}</span>`).join('');
+                return `<div class="trace-word trace-word-${i + 1}">${letters}</div>`;
+            }).join('');
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">✏️</span>
+                        <span class="task-title">משימה 2: העתק את המילה</span>
+                    </div>
+                    <div class="task-instruction">העתק את המילה 6 פעמים על הקווים</div>
+                    <div class="task-content">
+                        <div class="trace-lines">${lines}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 3: מלא את האותיות במדבקות (OLD TASK 2) - ROTATED PAGE
+        function createTask3(letters) {
+            const boxes = letters.map(l => `<div class="sticker-letter">${l}</div>`).join('');
+            const lengthClass = letters.length > 9 ? 'long-word' : '';
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">🔵</span>
+                        <span class="task-title">משימה 3: מלא את האותיות במדבקות</span>
+                    </div>
+                    <div class="task-instruction">הדבק מדבקות קטנות או נקודות צבע בכל האותיות</div>
+                    <div class="task-content">
+                        <div class="sticker-letters ${lengthClass}" data-length="${letters.length}">${boxes}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 4: כתוב את המילה בעצמך
+        function createTask4(word) {
+            const lines = Array(5).fill(0).map(() => 
+                '<div class="writing-line"></div>'
+            ).join('');
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">✏️</span>
+                        <span class="task-title">משימה 4: כתוב את המילה בעצמך</span>
+                    </div>
+                    <div class="task-instruction">נסה לכתוב את המילה לבד על השורות</div>
+                    <div class="task-content">
+                        <div class="example-word">${word}</div>
+                        <div class="writing-lines">${lines}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 5: חבר בין האות לתמונה
+        function createTask5(letters) {
+            // Use ALL letters from the word (not slice)
+            const allLetters = letters; 
+            const letterBoxes = allLetters.map(letter => 
+                `<div class="matching-box">${letter}</div>`
+            ).join('');
+            
+            // Better shuffling algorithm - Fisher-Yates
+            const shuffledImages = [...allLetters];
+            for (let i = shuffledImages.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledImages[i], shuffledImages[j]] = [shuffledImages[j], shuffledImages[i]];
+            }
+            
+            // Make sure it's actually different from original
+            let attempts = 0;
+            while (shuffledImages.join('') === allLetters.join('') && attempts < 10) {
+                for (let i = shuffledImages.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledImages[i], shuffledImages[j]] = [shuffledImages[j], shuffledImages[i]];
+                }
+                attempts++;
+            }
+            
+            const imageBoxes = shuffledImages.map(letter => {
+                const info = letterToWord[letter];
+                return info ? `<div class="matching-image-box">${info.emoji}</div>` : '';
+            }).join('');
+            
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">🎨</span>
+                        <span class="task-title">משימה 5: חבר בין האות לתמונה</span>
+                    </div>
+                    <div class="task-instruction">חבר כל אות לאיור המתאים</div>
+                    <div class="task-content">
+                        <div class="matching-container">
+                            <div class="matching-column">${letterBoxes}</div>
+                            <div class="matching-column">${imageBoxes}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 6: מצא את האותיות התכונות
+        function createTask6(letters) {
+            const allLetters = 'אבגדהוזחטיכלמנסעפצקרשת'.split('');
+            const wordLetters = [...new Set(letters)];
+            const otherLetters = allLetters.filter(l => !wordLetters.includes(l));
+            const shuffled = [...wordLetters, ...otherLetters.slice(0, 12 - wordLetters.length)]
+                .sort(() => Math.random() - 0.5);
+            const display = shuffled.map(l => 
+                `<div class="letter-tile">${l}</div>`
+            ).join('');
+            
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">🧩</span>
+                        <span class="task-title">משימה 6: מצא את האותיות התכונות</span>
+                    </div>
+                    <div class="task-instruction">סמן את האותיות שמרכיבות את המילה: ${letters.join('')}</div>
+                    <div class="task-content">
+                        <div class="letter-tiles">${display}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 7: מצא את המילה הנכונה
+        function createTask7(word) {
+            const variations = generateWordVariations(word);
+            const options = [word, ...variations].sort(() => Math.random() - 0.5);
+            const display = options.map(w => 
+                `<div class="word-option">${w}</div>`
+            ).join('');
+            
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">👀</span>
+                        <span class="task-title">משימה 7: מצא את המילה הנכונה</span>
+                    </div>
+                    <div class="task-instruction">קרא ובחר את המילה הנכונה וצבע אותה</div>
+                    <div class="task-content">
+                        <div class="word-options">${display}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 8: מצא את האות האמיתית (מסובבת)
+        function createTask8(letters) {
+            // Use ALL letters from the word (not slice)
+            const allLetters = letters; 
+            const rotations = ['rotated-90', 'rotated-180', 'rotated-270', 'flipped'];
+            
+            const rows = allLetters.map(letter => {
+                const versions = [
+                    { letter: letter, rotation: '' },
+                    ...rotations.slice(0, 5).map(rot => ({ letter: letter, rotation: rot }))
+                ];
+                
+                const shuffled = versions.sort(() => Math.random() - 0.5);
+                
+                const boxes = shuffled.map(v => 
+                    `<div class="real-letter-box"><span class="${v.rotation}">${v.letter}</span></div>`
+                ).join('');
+                
+                return `
+                    <div class="real-letters-row">
+                        <div class="real-letter-label">מצא את האות: ${letter}</div>
+                        ${boxes}
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">🔤</span>
+                        <span class="task-title">משימה 8: מצא את האות האמיתית</span>
+                    </div>
+                    <div class="task-instruction">חפש את האות הכתובה נכון (לא הפוכה או מסובבת)</div>
+                    <div class="task-content">
+                        <div class="real-letters-grid">${rows}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // משימה 9: גזור והרכב את המילה
+        function createTask9(letters) {
+            // Shuffle the letters for cutting
+            const shuffledLetters = [...letters];
+            for (let i = shuffledLetters.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledLetters[i], shuffledLetters[j]] = [shuffledLetters[j], shuffledLetters[i]];
+            }
+            
+            const cutouts = shuffledLetters.map(l => 
+                `<div class="cutout-letter">${l}</div>`
+            ).join('');
+            
+            return `
+                <div class="task">
+                    <div class="task-header">
+                        <span class="task-icon">✂️</span>
+                        <span class="task-title">משימה 9: גזור והרכב את המילה</span>
+                    </div>
+                    <div class="task-instruction">גזור את האותיות מהתחתית והרכב מהן את המילה כאן</div>
+                    <div class="task-content">
+                        <div class="paste-area"></div>
+                    </div>
+                    <div class="cutout-section">
+                        <div class="cutout-instruction">✂️ האותיות לגזירה נמצאות בתחתית העמוד האחרון ✂️</div>
+                        <div class="cutout-letters">${cutouts}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateWordVariations(word) {
+            const allLetters = 'אבגדהוזחטיכלמנסעפצקרשת'.split('');
+            const variations = [];
+            
+            for (let i = 0; i < 3; i++) {
+                let variation = word.split('');
+                const randomIndex = Math.floor(Math.random() * variation.length);
+                let randomLetter;
+                do {
+                    randomLetter = allLetters[Math.floor(Math.random() * allLetters.length)];
+                } while (randomLetter === variation[randomIndex]);
+                variation[randomIndex] = randomLetter;
+                variations.push(variation.join(''));
+            }
+            
+            return variations;
+        }
+    </script>
+</body>
+</html>
